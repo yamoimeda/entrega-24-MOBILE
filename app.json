@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "entrega-24",
+    "slug": "entrega-24",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  },
+  "name": "entrega-24"
+}
