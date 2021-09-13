@@ -1,18 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, StyleSheet, Button,FlatList,TouchableOpacity,Modal } from 'react-native';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { Text, View, StyleSheet, Button,FlatList,TouchableOpacity,Modal,Alert  } from 'react-native';
 import { Searchbar } from 'react-native-paper';
 import fire from './firebase';
 import Modalimprimir from './modalImprimir';
-import * as Print from 'expo-print';
-import {
-  USBPrinter,
-  NetPrinter,
-  BLEPrinter,
-} from "react-native-thermal-receipt-printer";
-
-import EscPosPrinter from 'react-native-esc-pos-printer';
-
+//import {app} from './alertas'
 export default  class Preferences extends React.Component {
   constructor(props) {
     super(props);    
@@ -29,14 +20,17 @@ export default  class Preferences extends React.Component {
       scantext:"",
       scancolor:'grey',
       modalimprimir:false,
-      printers:[]
+      printers:[],
+      alert:false,
+      tamano:false,
+      uid:'',
+      texto:''
     };
   }
 
   async componentDidMount(){
    
-    const { status } = await BarCodeScanner.requestPermissionsAsync();
-    this.setState({hasPermission:status} );
+
     var newdata=[]
     var newdatauser= {}
         fire.firestore().collection("usuarios")
@@ -54,7 +48,7 @@ export default  class Preferences extends React.Component {
           
                //inicia
                 
-                    fire.firestore().collection("pedidos")
+                    fire.firestore().collection("pedidos").where('status','==',0)
                   .get()
                   .then((querySnapshot) => {
                     querySnapshot.forEach((doc) => {
@@ -74,12 +68,38 @@ export default  class Preferences extends React.Component {
                 })
   }
 
-  handleBarCodeScanned = ({ type, data }) => {
-    this.setState({scanned: true, scantext:"correcto",scancolor:'green'});
-    
-    this.setState({scanned: false});
-  };
+ 
 
+
+  info = (it) =>
+  {
+    var text= ''
+    for (const [key, value] of Object.entries(it)) {
+      text= text + key+': '+value+'\n'
+    }
+    this.setState({ alert: true,texto:text })
+  }
+  
+  rechazaralert = (uid,st) =>{
+
+    Alert.alert(
+      "¿Estás seguro?",
+      "Confirmar",
+      [
+        {
+          text: "Si",
+          onPress: () => this.editar(uid,st)
+        },
+        
+        {
+          text: "Cancelar",
+          onPress: () => console.log("Cancel Pressed"),
+          style: "cancel"
+        },
+      ]
+  );
+
+  }
   searchFilterFunction = text => {    
     const newData = this.state.datas.filter(item => {      
       const itemData = `${item.cliente_nombre.toUpperCase()}`;
@@ -92,35 +112,56 @@ export default  class Preferences extends React.Component {
     this.setState({ data: newData });  
   };
 
+  editartamaño = (uid,tamano) => {
+  
+   
+    var edit=fire.firestore().collection("pedidos").doc(uid);
+
+    edit.update({
+      tamano: tamano
+   })
+   .then(() => {
+    var newdata = this.state.data
+      var index = newdata.findIndex((obj => obj.uid == uid));
+
+      newdata[index].tamano = tamano
+      this.setState({data:newdata})
+   })
+ 
+   this.setState({ tamano: false }) 
+  }
+
+  imprimir = async(uid) =>{
+    
+    this.setState({modalimprimir:true, uid:uid})
+    console.log(uid)
+  }
+
+
+  editar = (uid,status) => {
+  
+   
+      var edit=fire.firestore().collection("pedidos").doc(uid);
+
+      edit.update({
+         status: status
+     })
+     .then(() => {
+      this.setState({modalimprimir:false})
+      var newdata = this.state.data
+      var index = newdata.findIndex((obj => obj.uid == uid));
+
+      newdata[index].status = status
+      this.setState({data:newdata})
+     })
+   
+
+    }
+  
   
 
-  imprimir = async() =>{
-    EscPosPrinter.discovery()
-  .then((printers) => {
-    console.log(printers[0]);
-    /*
-    {
-      name: "TM_M10",
-      ip: "192.168.192.168" or "",
-      mac: "12:34:56:78:56:78" or "",
-      target: "TCP:192.168.192.168" or "BT:00:22:15:7D:70:9C" or "USB:000000000000000000",
-      bt: "12:34:56:78:56:78" or "",
-      usb: "000000000000000000" or "";
-      usbSerialNumber: "123456789012345678" or ""; // available if usbSerialNumber === true
-    }
-  */
-  })
-  .catch((e) => console.log('Print error:', e.message));
-    this.setState({modalimprimir:true})
-    console.log(this.state.printers)
-  }
   render() {
-    if (this.state.hasPermission === null) {
-      return <Text>Requesting for camera permission</Text>;
-    }
-    if (this.state.hasPermission === false) {
-      return <Text>No access to camera</Text>;
-    }
+   
   return (
     <View style={styles.container}>
 
@@ -136,10 +177,10 @@ export default  class Preferences extends React.Component {
           renderItem={({ item }) => 
           
           <View style={styles.item}>
-          <TouchableOpacity style={styles.arriba}>
+          <TouchableOpacity style={styles.arriba} onPress={()=> this.info(item)}>
             <View style={styles.titulo}>
                   <Text style={[styles.title,{position:'relative',left:10}]}>{item.cliente_nombre}</Text>
-                  <Text style={[styles.title,{position:'absolute',right:10}]}>SM</Text>
+                  <Text style={[styles.title,{position:'absolute',right:10}]}>{item.tamano}</Text>
             </View>
             <View style={styles.info}>
             <Text style={styles.descripcion}>{item["NOMBRE PROD"]}</Text>
@@ -148,14 +189,16 @@ export default  class Preferences extends React.Component {
               
         </TouchableOpacity>
         <View style={styles.abajo}>
-          
-          <TouchableOpacity style={[styles.boton,{backgroundColor:'red',}]}>
+          { item.status == 6 ? <TouchableOpacity style={[styles.boton,{backgroundColor:'red',}]} onPress={()=>this.rechazaralert(item.uid,0)}>
+              <Text style={styles.descrip}>Deshacer</Text>
+          </TouchableOpacity> :<TouchableOpacity style={[styles.boton,{backgroundColor:'red',}]} onPress={()=>this.rechazaralert(item.uid,6)}>
               <Text style={styles.descrip}>Rechazar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.boton,{backgroundColor:'#04101e',marginHorizontal:20}]}>
+          </TouchableOpacity>}
+          
+          <TouchableOpacity style={[styles.boton,{backgroundColor:'#04101e',marginHorizontal:20}]} onPress={()=> this.setState({ tamano: true,uid:item.uid })}>
               <Text style={styles.descrip}>Cambiar tamaño</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.boton,{backgroundColor:'green',}]} onPress={this.imprimir}>
+          <TouchableOpacity style={[styles.boton,{backgroundColor:'green',}]} onPress={()=>this.imprimir(item.uid)}>
               <Text style={styles.descrip}>Imprimir</Text>
           </TouchableOpacity>
         </View>
@@ -173,15 +216,101 @@ export default  class Preferences extends React.Component {
       >
        <Modalimprimir/>
       </Modal>
+      <Modal
+         transparent={true}
+         visible={this.state.alert}
+         animationIn="slideInLeft"
+         animationOut="slideOutRight">
+         <View
+           style={{
+             backgroundColor: 'rgba(0,0,0,0.2)',
+             alignItems: 'center',
+             justifyContent: 'center',
+             flex: 1,
+           }}>
+           <View
+             style={{
+               width: '90%',
+               backgroundColor: 'white',
+               padding: 22,
+               justifyContent: 'center',
+               alignItems: 'center',
+               borderRadius: 4,
+               borderColor: 'rgba(0, 0, 0, 0.1)',
+             }}>
+             <Text>{this.state.texto}</Text>
+             <Button
+               onPress={() => { this.setState({ alert: false }) }}
+               title="ok"
+             />
+             
+           </View>
+         </View>
+       </Modal>
+       <Modal
+         transparent={true}
+         visible={this.state.tamano}
+         animationIn="slideInLeft"
+         animationOut="slideOutRight">
+         <View
+           style={{
+             backgroundColor: 'rgba(0,0,0,0.2)',
+             alignItems: 'center',
+             justifyContent: 'center',
+             flex: 1,
+           }}>
+           <View
+             style={{
+               width: '90%',
+               backgroundColor: 'white',
+               padding: 22,
+               justifyContent: 'center',
+               alignItems: 'center',
+               borderRadius: 4,
+               borderColor: 'rgba(0, 0, 0, 0.1)',
+             }}>
+             <Text>Cambiar tamaño de paquete </Text>
+             <View style={{flexDirection:'row',justifyContent: 'space-between',}}>
+             <Button
+               onPress={() => { this.setState({ tamano: false }) }}
+               title="Cancelar"
+             />
+             <TouchableOpacity
+             style={{width:50, backgroundColor:'blue',marginLeft:20,borderRadius:5,justifyContent:'center',alignItems:'center'}}
+               onPress={() => { this.editartamaño(this.state.uid,'SM') }}
+               
+             >
+               <Text style={styles.descrip} >SM</Text>
+             </TouchableOpacity>
+             <TouchableOpacity
+             style={{width:50,backgroundColor:'blue',marginLeft:20,borderRadius:5,justifyContent:'center',alignItems:'center'}}
+               onPress={() => { this.editartamaño(this.state.uid,'M')}}
+               
+               >
+               <Text style={styles.descrip}>M</Text>
+             </TouchableOpacity>
+             <TouchableOpacity
+             style={{width:50,backgroundColor:'blue',marginLeft:20,borderRadius:5,justifyContent:'center',alignItems:'center'}}
+               onPress={() => { this.editartamaño(this.state.uid,'L') }}
+               
+               >
+               <Text style={styles.descrip}>L</Text>
+             </TouchableOpacity>
+             </View>
+            
+           </View>
+         </View>
+       </Modal>
     </View>
   )
 }
 }
- 
+
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    height:'100%',
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',

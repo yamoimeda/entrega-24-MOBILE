@@ -4,6 +4,7 @@ import { Alert, Modal, StyleSheet, Text, Pressable, View,TextInput,TouchableOpac
 
 const App = (props) => {
 
+  const [modalVisible, setModalVisible] = useState(false);
   const [id, setID] = useState('');
   
 
@@ -13,16 +14,7 @@ const App = (props) => {
     < View style={styles.container}>
      
         <View style={styles.contenedor}>
-        <TextInput
-         
-        style={styles.input}
-        onChangeText={setID}
-        value={id}
-      />
-
-              <TouchableOpacity style={[styles.boton,{backgroundColor:'green',marginHorizontal:20}]} >
-                  <Text style={styles.descrip}>Confirmar</Text>
-              </TouchableOpacity>
+            <Text style={styles.descrip}>Confirmar</Text>
         </View>
      
      
@@ -38,7 +30,7 @@ const styles = StyleSheet.create({
     backgroundColor:'rgba(0,0,0,0.5)'
   },
   contenedor: {
-      height:'20%',
+      height:'60%',
     marginHorizontal: 20,
     backgroundColor: "white",
     borderRadius: 20,

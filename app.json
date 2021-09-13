@@ -5,7 +5,17 @@
     "version": "1.0.0",
     "assetBundlePatterns": [
       "**/*"
-    ]
+    ],
+    "ios": {
+      "bundleIdentifier": "com.entrega24",
+      "buildNumber": "1.0.0"
+    },
+    "android": {
+      "softwareKeyboardLayoutMode": "pan",
+      "package": "com.entrega24",
+      "versionCode": 1
+    },
+    "description": ""
   },
   "name": "entrega-24"
 }
