@@ -1,1 +1,1 @@
-"# entrega24app" 
+Vession mobile para Entrega 24
